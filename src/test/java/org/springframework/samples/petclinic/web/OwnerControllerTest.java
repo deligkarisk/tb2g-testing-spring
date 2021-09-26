@@ -18,10 +18,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -46,6 +49,59 @@ class OwnerControllerTest {
     @Captor
     ArgumentCaptor<String> stringArgumentCaptor;
 
+    @Captor
+    ArgumentCaptor<Owner> ownerArgumentCaptor;
+
+
+    @Test
+    void testMethodOwnerPostValid() throws Exception {
+        mockMvc.perform(post("/owners/new")
+                        .param("firstName", "Jimmy")
+                        .param("lastName", "Buffet")
+                        .param("Address", "123 Duffet Street")
+                        .param("city", "Athens")
+                        .param("telephone", "000700400"))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void testMethodOwnerPostInvalid() throws Exception {
+        mockMvc.perform(post("/owners/new")
+                        .param("firstName", "Jimmy")
+                        .param("lastName", "Buffet")
+                        .param("city", "Athens"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeHasFieldErrors("owner", "address"))
+                .andExpect(model().attributeHasFieldErrors("owner", "telephone"))
+                .andExpect(view().name("owners/createOrUpdateOwnerForm"));
+
+    }
+
+    @Test
+    void processUpdateOwnerForm() throws Exception {
+        mockMvc.perform(post("/owners/{ownerId}/edit", 22)
+                        .param("firstName", "Jimmy")
+                        .param("lastName", "Buffet")
+                        .param("Address", "123 Duffet Street")
+                        .param("city", "Athens")
+                        .param("telephone", "000700400"))
+                .andExpect(status().is3xxRedirection());
+        then(clinicService).should().saveOwner(ownerArgumentCaptor.capture());
+        assertEquals((Integer) 22,ownerArgumentCaptor.getValue().getId());
+        then(clinicService).should().saveOwner(any(Owner.class));
+    }
+
+    @Test
+    void processUpdateOwnerFormInvalid() throws Exception {
+        mockMvc.perform(post("/owners/{ownerId}/edit", 22)
+                        .param("firstName", "Jimmy")
+                        .param("lastName", "Buffet")
+                        .param("city", "Athens")
+                        .param("telephone", "000700400"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(OwnerController.VIEWS_OWNER_CREATE_OR_UPDATE_FORM));
+        then(clinicService).shouldHaveZeroInteractions();
+    }
 
     @Test
     void testFindByNameNotFound() throws Exception {
@@ -83,7 +139,7 @@ class OwnerControllerTest {
         given(clinicService.findOwnerByLastName("")).willReturn(owners);
 
         mockMvc.perform(get("/owners")
-                .param("lastName", ""))
+                        .param("lastName", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name("owners/ownersList"));
 
@@ -103,5 +159,6 @@ class OwnerControllerTest {
         Mockito.reset(clinicService);
 
     }
+
 
 }
